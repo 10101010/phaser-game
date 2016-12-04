@@ -1,0 +1,25 @@
+{
+  "name": "phaser-game",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "compression": "^1.6.2",
+    "socket.io": "^1.2.0",
+    "express": "^4.10.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/10101010/phaser-game.git"
+  },
+  "author": "rkirilyuk",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/10101010/phaser-game/issues"
+  },
+  "homepage": "https://github.com/10101010/phaser-game#readme"
+}
