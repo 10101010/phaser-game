@@ -1,284 +1,261 @@
-window.onload = function(){
-    var game = new Game();
-    var socket = game.getSocket();
+window.onload = function() {
+  var game = new Game();
+  var socket = game.getSocket();
 
-    socket.emit('join', function(data) {
-        game.sync({ playersCount: parseInt(data.playersCount) });
+  socket.emit('join', function(data) {
+    game.sync({
+      playersCount: parseInt(data.playersCount)
     });
+  });
 
-    socket.on('joined', function(data){
-        data.playersCount = parseInt(data.playersCount);
-        game.sync({playersCount: parseInt(data.playersCount) });
+  socket.on('joined', function(data) {
+    data.playersCount = parseInt(data.playersCount);
+    game.sync({
+      playersCount: parseInt(data.playersCount)
     });
+  });
 };
 
 function Game() {
 
-    var socket = io();
+  var socket = io();
 
-    var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'phaser-example');
+  var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'phaser-example');
 
-    var map;
-    var tileset;
-    var layer;
-    var player;
-    var facing = 'left';
-    var jumpTimer = 0;
-    var cursors;
-    var jumpButton;
-    var bg;
-    var currentPlayer = game.rnd.integerInRange(100, 250);
-    var master = false;
-    var moveFactor = 3;
-    var guys = [];
-    var totalPlayers;
+  var map;
+  var tileset;
+  var layer;
+  var player;
+  var facing = 'left';
+  var jumpTimer = 0;
+  var cursors;
+  var jumpButton;
+  var bg;
+  var currentPlayer = game.rnd.integerInRange(100, 250);
+  var master = false;
+  var moveFactor = 3;
+  var guys = [];
+  var totalPlayers;
 
-    var GameState = {
+  var GameState = {
 
-        init: function (data) { 
-            currentPlayer = data.player;
-            var self = this;
+    init: function(data) {
+      currentPlayer = data.player;
+      var self = this;
 
-            socket.on('clientUpdate', function(data) {
-                self.updateClient(data);
-            });
+      socket.on('clientUpdate', function(data) {
+        self.updateClient(data);
+      });
 
-            console.log('totalPlayers ' + totalPlayers);
-            console.log('currentPlayer ' + currentPlayer);
-        },
+      console.log('totalPlayers ' + totalPlayers);
+      console.log('currentPlayer ' + currentPlayer);
+    },
 
-        preload: function () {
-            game.load.tilemap('level1', 'assets/games/starstruck/level1.json', null, Phaser.Tilemap.TILED_JSON);
-            game.load.image('tiles-1', 'assets/games/starstruck/tiles-1.png');
-            game.load.spritesheet('dude', 'assets/games/starstruck/dude.png', 32, 48);
-            game.load.spritesheet('droid', 'assets/games/starstruck/droid.png', 32, 32);
-            game.load.image('starSmall', 'assets/games/starstruck/star.png');
-            game.load.image('starBig', 'assets/games/starstruck/star2.png');
-            game.load.image('background', 'assets/games/starstruck/background2.png');
-        },
+    preload: function() {
+      game.load.tilemap('level1', 'assets/games/starstruck/level1.json', null, Phaser.Tilemap.TILED_JSON);
+      game.load.image('tiles-1', 'assets/games/starstruck/tiles-1.png');
+      game.load.spritesheet('dude', 'assets/games/starstruck/dude.png', 32, 48);
+      game.load.spritesheet('droid', 'assets/games/starstruck/droid.png', 32, 32);
+      game.load.image('starSmall', 'assets/games/starstruck/star.png');
+      game.load.image('starBig', 'assets/games/starstruck/star2.png');
+      game.load.image('background', 'assets/games/starstruck/background2.png');
+    },
 
-        create: function (game) {
+    create: function(game) {
 
-            game.physics.startSystem(Phaser.Physics.ARCADE);
+      game.physics.startSystem(Phaser.Physics.ARCADE);
 
-            game.stage.backgroundColor = '#000000';
+      game.stage.backgroundColor = '#000000';
 
-            bg = game.add.tileSprite(0, 0, 800, 600, 'background');
-            bg.fixedToCamera = true;
+      bg = game.add.tileSprite(0, 0, 800, 600, 'background');
+      bg.fixedToCamera = true;
 
-            map = game.add.tilemap('level1');
+      map = game.add.tilemap('level1');
 
-            map.addTilesetImage('tiles-1');
-            
-            game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
+      map.addTilesetImage('tiles-1');
 
-            map.setCollisionByExclusion([ 13, 14, 15, 16, 46, 47, 48, 49, 50, 51 ]);
+      game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
 
-            layer = map.createLayer('Tile Layer 1');
+      map.setCollisionByExclusion([13, 14, 15, 16, 46, 47, 48, 49, 50, 51]);
 
-            //  Un-comment this on to see the collision tiles
-            // layer.debug = true;
+      layer = map.createLayer('Tile Layer 1');
 
-            layer.resizeWorld();
+      //  Un-comment this on to see the collision tiles
+      // layer.debug = true;
 
-            game.physics.arcade.gravity.y = 250;
+      layer.resizeWorld();
 
-            for (var i = 0; i < totalPlayers; i++) {
+      game.physics.arcade.gravity.y = 250;
 
-                var guy = game.add.sprite(60*i + 30, 60*i +30, 'dude');
+      for (var i = 0; i < totalPlayers; i++) {
 
-                game.physics.enable(guy, Phaser.Physics.ARCADE);
-                guy.body.bounce.y = 0.2;
-                guy.body.collideWorldBounds = true;
-                guy.body.setSize(20, 32, 5, 16);
+        var guy = game.add.sprite(60 * i + 30, 60 * i + 30, 'dude');
 
-                guy.animations.add('left', [0, 1, 2, 3], 10, true);
-                guy.animations.add('turn', [4], 20, true);
-                guy.animations.add('right', [5, 6, 7, 8], 10, true);
+        game.physics.enable(guy, Phaser.Physics.ARCADE);
+        guy.body.bounce.y = 0.2;
+        guy.body.collideWorldBounds = true;
+        guy.body.setSize(20, 32, 5, 16);
 
-    
-                guys.push(guy);
-                console.log("hooray "+ i);
-            };
-
-            game.camera.follow(guys[currentPlayer]);
-
-            jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
-            
-            game.input.onDown.add(gofull, this);
-
-            function gofull() {
-                if (game.scale.isFullScreen) {
-                    game.scale.stopFullScreen();
-                }
-                else {
-                    game.scale.startFullScreen(false);
-                }
-            }
-
-        },
-
-        update: function (data) {       
-
-            for (var guy in guys) {
-                game.physics.arcade.collide(guys[guy], layer);
-            }         
-
-            if (cursors.left.isDown)
-            {
-                guys[currentPlayer].body.velocity.x = -150;
-
-                if (facing != 'left')
-                {
-                    guys[currentPlayer].animations.play('left');
-                    facing = 'left';
-                }
-            }
-            else if (cursors.right.isDown)
-            {
-                guys[currentPlayer].body.velocity.x = 150;
-
-                if (facing != 'right')
-                {
-                    guys[currentPlayer].animations.play('right');
-                    facing = 'right';
-                }
-            }
-            else
-            {
-                if (facing != 'idle')
-                {
-                    guys[currentPlayer].animations.stop();
-
-                    if (facing == 'left')
-                    {
-                        guys[currentPlayer].frame = 0;
-                    }
-                    else
-                    {
-                        guys[currentPlayer].frame = 5;
-                    }
-
-                    facing = 'idle';
-                }
-            }
-            
-            if (jumpButton.isDown && game.time.now > jumpTimer)
-            {
-                guys[currentPlayer].body.velocity.y = -70;
-                jumpTimer = game.time.now + 50;
-            }
-
-            this.updateServer();
-        },
-
-        render: function () {
-            // game.debug.text(game.time.physicsElapsed, 32, 32);
-             game.debug.body(guys[currentPlayer]);
-             game.debug.bodyInfo(guys[currentPlayer], 16, 24);
-        },
+        guy.animations.add('left', [0, 1, 2, 3], 10, true);
+        guy.animations.add('turn', [4], 20, true);
+        guy.animations.add('right', [5, 6, 7, 8], 10, true);
 
 
-        updateServer: function () {
-            // this.socketTiming+=game.time.elapsed;
-            // if (this.socketTiming < this.getSocketDelay()) {
-            //     return;
-            // }
-            // this.socketTiming = 0;
+        guys.push(guy);
+        console.log("hooray " + i);
+      };
 
-            var data = { socketId: socket.id };
+      game.camera.follow(guys[currentPlayer]);
 
-            data['player'] = parseInt(currentPlayer);
+      jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
-            data['posx'] = parseFloat(guys[currentPlayer].body.velocity.x);
-            data['posy'] = parseFloat(guys[currentPlayer].body.velocity.y);
-        
-            socket.emit('gameUpdate', data);
-        },
+      game.input.onDown.add(gofull, this);
 
-        updateClient: function (data) {
-
-            //console.log('gg' + data.player);
-            //console.log('gg2' + currentPlayer);
-            console.log('data l ' + data.player);
-
-            for(var i in data) {
-                if (currentPlayer != data.player) {
-                    guys[data.player].body.velocity.x = parseFloat(data.posx);
-                    guys[data.player].body.velocity.y = parseFloat(data.posy);
-                }
-            }
-        },
-
-    };
-
-    var SynchState = {
-        p: false,
-        players: 0,
-        countdown: false,
-        init: function (data) {
-            //game.stage.disableVisibilityChange = true;
-
-            var self = this;
-            console.log('data ' + data.playersCount);
-            totalPlayers = parseInt(data.playersCount);
-            self.players = parseInt(data.playersCount);
-            self.p = data.playersCount -1;
-
-            socket.on('joined', function (data) {
-                currentPlayer = parseInt(data.playersCount);
-                self.players = parseInt(data.playersCount);
-            });
-
-            // }
-        },
-        preload: function () {
-            cursors = game.input.keyboard.createCursorKeys();
-        },
-        create: function () {
-
-        },
-        update: function () {
-            // game.physics.arcade.collide(ball, paddles, function (ball, player) {
-            //     ball.tint = player.tint;
-            // });
-            this.initGame(2);
-        },
-        initGame: function(phase) {
-            switch(phase) {
-                case 1:
-                    for (var i in paddles) {
-                        paddles[i].position.setTo(paddles[i].op.x,paddles[i].op.y);
-                    }
-                    this.text.text = "GO!";
-                case 2:
-                    game.state.start("game", false, false, { player: this.p });
-                    socket.removeAllListeners('joined');
-                    socket.removeAllListeners('timeOut');
-                    socket.removeAllListeners('playerLeft');
-                    //this.text.destroy();
-                break;
-            }
+      function gofull() {
+        if (game.scale.isFullScreen) {
+          game.scale.stopFullScreen();
+        } else {
+          game.scale.startFullScreen(false);
         }
-    };
+      }
 
-    game.state.add("sync", SynchState, false);
-    game.state.add("game", GameState, false);
+    },
 
-    this.switchToSync = function(data) {
-        game.state.start("sync", false, false, data);
-    };
+    update: function(data) {
 
-    this.getSocket = function() {
-        return socket;
-    };
+      for (var guy in guys) {
+        game.physics.arcade.collide(guys[guy], layer);
+      }
 
-    return this;
+      if (cursors.left.isDown) {
+        guys[currentPlayer].body.velocity.x = -150;
+
+        if (facing != 'left') {
+          guys[currentPlayer].animations.play('left');
+          facing = 'left';
+        }
+      } else if (cursors.right.isDown) {
+        guys[currentPlayer].body.velocity.x = 150;
+
+        if (facing != 'right') {
+          guys[currentPlayer].animations.play('right');
+          facing = 'right';
+        }
+      } else {
+        if (facing != 'idle') {
+          guys[currentPlayer].animations.stop();
+
+          if (facing == 'left') {
+            guys[currentPlayer].frame = 0;
+          } else {
+            guys[currentPlayer].frame = 5;
+          }
+
+          facing = 'idle';
+        }
+      }
+
+      if (jumpButton.isDown && game.time.now > jumpTimer) {
+        guys[currentPlayer].body.velocity.y = -70;
+        jumpTimer = game.time.now + 50;
+      }
+
+      this.updateServer();
+    },
+
+    render: function() {
+      // game.debug.text(game.time.physicsElapsed, 32, 32);
+      game.debug.body(guys[currentPlayer]);
+      game.debug.bodyInfo(guys[currentPlayer], 16, 24);
+    },
+
+
+    updateServer: function() {
+
+      var data = {
+        socketId: socket.id
+      };
+
+      data['player'] = parseInt(currentPlayer);
+
+      data['posx'] = parseFloat(guys[currentPlayer].body.velocity.x);
+      data['posy'] = parseFloat(guys[currentPlayer].body.velocity.y);
+
+      socket.emit('gameUpdate', data);
+    },
+
+    updateClient: function(data) {
+      for (var i in data) {
+        if (currentPlayer != data.player) {
+          guys[data.player].body.velocity.x = parseFloat(data.posx);
+          guys[data.player].body.velocity.y = parseFloat(data.posy);
+        }
+      }
+    },
+
+  };
+
+  var SynchState = {
+    p: false,
+    players: 0,
+    countdown: false,
+    init: function(data) {
+      var self = this;
+      console.log('data ' + data.playersCount);
+      totalPlayers = parseInt(data.playersCount);
+      self.players = parseInt(data.playersCount);
+      self.p = data.playersCount - 1;
+
+      socket.on('joined', function(data) {
+        currentPlayer = parseInt(data.playersCount);
+        self.players = parseInt(data.playersCount);
+      });
+    },
+    preload: function() {
+      cursors = game.input.keyboard.createCursorKeys();
+    },
+    create: function() {
+
+    },
+    update: function() {
+      this.initGame(2);
+    },
+    initGame: function(phase) {
+      switch (phase) {
+        case 1:
+          for (var i in paddles) {
+            paddles[i].position.setTo(paddles[i].op.x, paddles[i].op.y);
+          }
+          this.text.text = "GO!";
+        case 2:
+          game.state.start("game", false, false, {
+            player: this.p
+          });
+          socket.removeAllListeners('joined');
+          socket.removeAllListeners('timeOut');
+          socket.removeAllListeners('playerLeft');
+          break;
+      }
+    }
+  };
+
+  game.state.add("sync", SynchState, false);
+  game.state.add("game", GameState, false);
+
+  this.switchToSync = function(data) {
+    game.state.start("sync", false, false, data);
+  };
+
+  this.getSocket = function() {
+    return socket;
+  };
+
+  return this;
 }
 
-Game.prototype.getSocket = function () {
-    return this.getSocket();
+Game.prototype.getSocket = function() {
+  return this.getSocket();
 };
 Game.prototype.sync = function(data) {
-    this.switchToSync(data);
+  this.switchToSync(data);
 };
