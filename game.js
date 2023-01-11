@@ -9,6 +9,8 @@ window.onload = function() {
   });
 
   socket.on('joined', function(data) {
+    socket.id = data.socketId;
+
     data.playersCount = parseInt(data.playersCount);
     game.sync({
       playersCount: parseInt(data.playersCount)
@@ -173,9 +175,10 @@ function Game() {
     updateServer: function() {
 
       var data = {
-        socketId: socket.id
+        socketId: 1
       };
 
+      data['socketId'] = socket.id;
       data['player'] = parseInt(currentPlayer);
 
       data['posx'] = parseFloat(guys[currentPlayer].body.velocity.x);

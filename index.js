@@ -1,6 +1,7 @@
 var express = require('express');
 var path = require('path');
 var compress = require('compression');
+var _ = require('underscore');
 
 var app = express();
 
@@ -9,32 +10,40 @@ app.use(compress());
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
-app.use(express.static(__dirname, '/assets'));
+app.use(express.static('.'));
 
 app.get('/', function(req, res) {
   res.sendFile(__dirname + '/index.html');
 });
 
 var clients = {};
-var clientPlayers = {};
+var clientPlayers = [];
 var maxPlayers = 3;
 
 io.on('connection', function(socket) {
   clients[socket.id] = null;
 
   socket.on('join', function(data) {
-    var players = Object.keys(io.sockets.sockets).length;
-    clientPlayers[socket.id] = players;
+    var playerNum = Object.keys(io.sockets.sockets).length;
+
+    console.log('cp', Math.max(_.values(clientPlayers)))
+    clientPlayers[socket.id] = playerNum;
     console.log(clientPlayers);
-    console.log('client ' + socket.id + ' connected ' + ' (' + players + '/' + maxPlayers + ')');
+    console.log('client ' + socket.id + ' connected ' + ' (' + playerNum + '/' + maxPlayers + ')');
     io.emit('joined', {
-      playersCount: players
+      playersCount: playerNum,
+      clientPlayers: clientPlayers,
+      socketId: socket.id
+    });
+
+    socket.on("disconnect", (reason) => {
+      delete clientPlayers[socket.id]
     });
   });
 
   socket.on('gameUpdate', function(data) {
     //delete data.socketId;
-    console.log(data);
+    //console.log(data);
     io.emit('clientUpdate', data);
   });
 
