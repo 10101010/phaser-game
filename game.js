@@ -149,17 +149,12 @@ function Game() {
         if (socket.id != data.socketId && guys.hasOwnProperty(data.socketId)) {
           guys[data.socketId].x = data.posx;
           guys[data.socketId].y = data.posy - 16;
+          guys[data.socketId].animations.play(data.animation);
 
-          if (facing != 'idle') {
+          if (data.facing == 'idle') {
             guys[data.socketId].animations.stop();
-  
-            if (facing == 'left') {
-              guys[data.socketId].frame = 0;
-            } else {
-              guys[data.socketId].frame = 5;
-            }
-          };          
-        }
+          }
+        } 
       });
 
       for (var guy in guys) {
@@ -227,6 +222,9 @@ function Game() {
       data['posx'] = parseFloat(guys[socket.id].body.x);
       data['posy'] = parseFloat(guys[socket.id].body.y);
 
+      data['animation'] = guys[socket.id].animations.currentAnim.name;
+      data['facing'] = facing
+
       socket.emit('gameUpdate', data);
     },
 
@@ -279,6 +277,7 @@ function Game() {
   game.state.add("game", GameState, false);
 
   this.switchToSync = function(data) {
+    game.stage.disableVisibilityChange = true;
     game.state.start("sync", false, false, data);
   };
 
