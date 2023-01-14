@@ -31,6 +31,7 @@ function Game() {
   var player;
   var facing = 'left';
   var jumpTimer = 0;
+  var syncTimer = 0;
   var cursors;
   var jumpButton;
   var bg;
@@ -147,9 +148,15 @@ function Game() {
 
       socket.on('clientUpdate', function(data) {
         if (socket.id != data.socketId && guys.hasOwnProperty(data.socketId)) {
-          guys[data.socketId].x = data.posx;
-          guys[data.socketId].y = data.posy - 16;
+          guys[data.socketId].body.velocity.x = data.velx;
+          guys[data.socketId].body.velocity.y = data.vely;
           guys[data.socketId].animations.play(data.animation);
+
+          if (game.time.now > syncTimer) {
+            guys[data.socketId].x = data.posx - 5;
+            guys[data.socketId].y = data.posy - 16;
+            syncTimer = game.time.now + 1000;
+          }    
 
           if (data.facing == 'idle') {
             guys[data.socketId].animations.stop();
@@ -196,7 +203,7 @@ function Game() {
       }
 
       if (jumpButton.isDown && game.time.now > jumpTimer) {
-        guys[socket.id].body.velocity.y = -70;
+        guys[socket.id].body.velocity.y = -150;
         jumpTimer = game.time.now + 10;
       }
 
