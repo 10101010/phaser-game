@@ -37,12 +37,13 @@ io.on('connection', function(socket) {
       clientPlayers: clientPlayers,
       socketId: socket.id
     });
+  });
 
-    socket.on("disconnect", (reason) => {
-      console.log(reason, socket.id)
-      delete clientPlayers[socket.id]
-      console.log('players', clientPlayers);
-    });
+  socket.on("disconnect", (reason) => {
+    console.log(reason, socket.id);
+    delete clientPlayers[socket.id];
+    io.emit('disconnect', socket.id);
+    console.log('players', clientPlayers);
   });
 
   socket.on('gameUpdate', function(data) {

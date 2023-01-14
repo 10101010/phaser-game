@@ -141,6 +141,10 @@ function Game() {
         }
       };
 
+      socket.on('disconnect', function(socketId) {
+        delete guys[socketId];
+      })
+
       socket.on('clientUpdate', function(data) {
         if (socket.id != data.socketId && guys.hasOwnProperty(data.socketId)) {
           guys[data.socketId].x = data.posx;
