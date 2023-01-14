@@ -10,10 +10,11 @@ window.onload = function() {
 
   socket.on('joined', function(data) {
     socket.id = data.socketId;
-
     data.playersCount = parseInt(data.playersCount);
+
     game.sync({
-      playersCount: parseInt(data.playersCount)
+      playersCount: parseInt(data.playersCount),
+      clientPlayers: data.clientPlayers
     });
   });
 };
@@ -34,20 +35,19 @@ function Game() {
   var jumpButton;
   var bg;
   var currentPlayer = game.rnd.integerInRange(100, 250);
+  var clientPlayers = {}
   var master = false;
   var moveFactor = 3;
-  var guys = [];
+  var guys = {};
   var totalPlayers;
 
   var GameState = {
 
     init: function(data) {
       currentPlayer = data.player;
-      var self = this;
+      clientPlayers = data.clientPlayers;
 
-      socket.on('clientUpdate', function(data) {
-        self.updateClient(data);
-      });
+      var self = this;
 
       console.log('totalPlayers ' + totalPlayers);
       console.log('currentPlayer ' + currentPlayer);
@@ -64,7 +64,6 @@ function Game() {
     },
 
     create: function(game) {
-
       game.physics.startSystem(Phaser.Physics.ARCADE);
 
       game.stage.backgroundColor = '#000000';
@@ -87,27 +86,22 @@ function Game() {
 
       layer.resizeWorld();
 
-      game.physics.arcade.gravity.y = 250;
+      game.physics.arcade.gravity.y = 1000;
 
-      for (var i = 0; i < totalPlayers; i++) {
+      var guy = game.add.sprite(60, 60, 'dude');
 
-        var guy = game.add.sprite(60 * i + 30, 60 * i + 30, 'dude');
+      game.physics.enable(guy, Phaser.Physics.ARCADE);
+      // guy.body.bounce.y = 0.01;
+      guy.body.collideWorldBounds = true;
+      guy.body.setSize(20, 32, 5, 16);
 
-        game.physics.enable(guy, Phaser.Physics.ARCADE);
-        guy.body.bounce.y = 0.2;
-        guy.body.collideWorldBounds = true;
-        guy.body.setSize(20, 32, 5, 16);
+      guy.animations.add('left', [0, 1, 2, 3], 10, true);
+      guy.animations.add('turn', [4], 20, true);
+      guy.animations.add('right', [5, 6, 7, 8], 10, true);
 
-        guy.animations.add('left', [0, 1, 2, 3], 10, true);
-        guy.animations.add('turn', [4], 20, true);
-        guy.animations.add('right', [5, 6, 7, 8], 10, true);
+      game.camera.follow(guy);
 
-
-        guys.push(guy);
-        console.log("hooray " + i);
-      };
-
-      game.camera.follow(guys[currentPlayer]);
+      guys[socket.id] = guy;
 
       jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
@@ -124,33 +118,78 @@ function Game() {
     },
 
     update: function(data) {
+      socket.on('joined', function(data) {
+        clientPlayers = data.clientPlayers;
+      });
+
+      for (var player in clientPlayers) {
+        if (player != socket.id && !guys.hasOwnProperty(player)) {
+          var guy = game.add.sprite(60 + 30, 60 + 30, 'dude');
+
+          game.physics.enable(guy, Phaser.Physics.ARCADE);
+
+          // guy.body.bounce.y = 0.01;
+          // guy.body.collideWorldBounds = false;
+          guy.body.setSize(20, 32, 5, 16);
+
+          guy.animations.add('left', [0, 1, 2, 3], 10, true);
+          guy.animations.add('turn', [4], 20, true);
+          guy.animations.add('right', [5, 6, 7, 8], 10, true);
+
+          guys[player] = guy;
+
+        }
+      };
+
+      socket.on('clientUpdate', function(data) {
+        if (socket.id != data.socketId && guys.hasOwnProperty(data.socketId)) {
+          guys[data.socketId].x = data.posx;
+          guys[data.socketId].y = data.posy - 16;
+
+          if (facing != 'idle') {
+            guys[data.socketId].animations.stop();
+  
+            if (facing == 'left') {
+              guys[data.socketId].frame = 0;
+            } else {
+              guys[data.socketId].frame = 5;
+            }
+          };          
+        }
+      });
 
       for (var guy in guys) {
         game.physics.arcade.collide(guys[guy], layer);
       }
 
+      if (cursors.left.isUp) {
+        guys[socket.id].body.velocity.x = -0;
+      } else if (cursors.right.isUp) {
+        guys[socket.id].body.velocity.x = 0;
+      } ;
+
       if (cursors.left.isDown) {
-        guys[currentPlayer].body.velocity.x = -150;
+        guys[socket.id].body.velocity.x = -100;
 
         if (facing != 'left') {
-          guys[currentPlayer].animations.play('left');
+          guys[socket.id].animations.play('left');
           facing = 'left';
         }
       } else if (cursors.right.isDown) {
-        guys[currentPlayer].body.velocity.x = 150;
+        guys[socket.id].body.velocity.x = 100;
 
         if (facing != 'right') {
-          guys[currentPlayer].animations.play('right');
+          guys[socket.id].animations.play('right');
           facing = 'right';
         }
       } else {
         if (facing != 'idle') {
-          guys[currentPlayer].animations.stop();
+          guys[socket.id].animations.stop();
 
           if (facing == 'left') {
-            guys[currentPlayer].frame = 0;
+            guys[socket.id].frame = 0;
           } else {
-            guys[currentPlayer].frame = 5;
+            guys[socket.id].frame = 5;
           }
 
           facing = 'idle';
@@ -158,8 +197,8 @@ function Game() {
       }
 
       if (jumpButton.isDown && game.time.now > jumpTimer) {
-        guys[currentPlayer].body.velocity.y = -70;
-        jumpTimer = game.time.now + 50;
+        guys[socket.id].body.velocity.y = -70;
+        jumpTimer = game.time.now + 10;
       }
 
       this.updateServer();
@@ -167,33 +206,24 @@ function Game() {
 
     render: function() {
       // game.debug.text(game.time.physicsElapsed, 32, 32);
-      game.debug.body(guys[currentPlayer]);
-      game.debug.bodyInfo(guys[currentPlayer], 16, 24);
+      game.debug.body(guys[socket.id]);
+      game.debug.bodyInfo(guys[socket.id], 16, 24);
     },
 
 
     updateServer: function() {
-
-      var data = {
-        socketId: 1
-      };
+      var data = {}
 
       data['socketId'] = socket.id;
-      data['player'] = parseInt(currentPlayer);
+      data['player'] = parseInt(socket.id);
 
-      data['posx'] = parseFloat(guys[currentPlayer].body.velocity.x);
-      data['posy'] = parseFloat(guys[currentPlayer].body.velocity.y);
+      data['velx'] = parseFloat(guys[socket.id].body.velocity.x);
+      data['vely'] = parseFloat(guys[socket.id].body.velocity.y);
+
+      data['posx'] = parseFloat(guys[socket.id].body.x);
+      data['posy'] = parseFloat(guys[socket.id].body.y);
 
       socket.emit('gameUpdate', data);
-    },
-
-    updateClient: function(data) {
-      for (var i in data) {
-        if (currentPlayer != data.player) {
-          guys[data.player].body.velocity.x = parseFloat(data.posx);
-          guys[data.player].body.velocity.y = parseFloat(data.posy);
-        }
-      }
     },
 
   };
@@ -204,15 +234,16 @@ function Game() {
     countdown: false,
     init: function(data) {
       var self = this;
-      console.log('data ' + data.playersCount);
-      totalPlayers = parseInt(data.playersCount);
-      self.players = parseInt(data.playersCount);
-      self.p = data.playersCount - 1;
+      // totalPlayers = parseInt(data.playersCount);
+      // self.players = parseInt(data.playersCount);
 
-      socket.on('joined', function(data) {
-        currentPlayer = parseInt(data.playersCount);
-        self.players = parseInt(data.playersCount);
-      });
+      self.p = data.playersCount - 1;
+      self.clientPlayers = data.clientPlayers;
+
+      // socket.on('joined', function(data) {
+      //   currentPlayer = parseInt(data.playersCount);
+      //   self.players = parseInt(data.playersCount);
+      // });
     },
     preload: function() {
       cursors = game.input.keyboard.createCursorKeys();
@@ -226,13 +257,11 @@ function Game() {
     initGame: function(phase) {
       switch (phase) {
         case 1:
-          for (var i in paddles) {
-            paddles[i].position.setTo(paddles[i].op.x, paddles[i].op.y);
-          }
           this.text.text = "GO!";
         case 2:
           game.state.start("game", false, false, {
-            player: this.p
+            player: this.p,
+            clientPlayers: this.clientPlayers
           });
           socket.removeAllListeners('joined');
           socket.removeAllListeners('timeOut');

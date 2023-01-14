@@ -7,8 +7,8 @@ var app = express();
 
 app.use(compress());
 
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var server = require('http').Server(app);
+var io = require('socket.io')(server);
 
 app.use(express.static('.'));
 
@@ -17,39 +17,43 @@ app.get('/', function(req, res) {
 });
 
 var clients = {};
-var clientPlayers = [];
-var maxPlayers = 3;
+var clientPlayers = {};
+
+server.lastPlayderID = 0; // Keep track of the last id assigned to a new player
 
 io.on('connection', function(socket) {
   clients[socket.id] = null;
 
   socket.on('join', function(data) {
-    var playerNum = Object.keys(io.sockets.sockets).length;
+    var playerNum = server.lastPlayderID++;
 
-    console.log('cp', Math.max(_.values(clientPlayers)))
     clientPlayers[socket.id] = playerNum;
+
     console.log(clientPlayers);
-    console.log('client ' + socket.id + ' connected ' + ' (' + playerNum + '/' + maxPlayers + ')');
+    console.log('client ' + socket.id + ' connected ' + ' (' + playerNum + ')');
+
     io.emit('joined', {
-      playersCount: playerNum,
+      playersCount: Object.keys(clientPlayers).length ,
       clientPlayers: clientPlayers,
       socketId: socket.id
     });
 
     socket.on("disconnect", (reason) => {
+      console.log(reason, socket.id)
       delete clientPlayers[socket.id]
+      console.log('players', clientPlayers);
     });
   });
 
   socket.on('gameUpdate', function(data) {
     //delete data.socketId;
-    //console.log(data);
+    // console.log(data);
     io.emit('clientUpdate', data);
   });
 
 });
 
-http.listen(3000, function() {
+server.listen(3000, function() {
   console.log('listening on *:3000');
 });
 
