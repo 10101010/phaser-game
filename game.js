@@ -1,5 +1,6 @@
 window.onload = function() {
   var game = new Game();
+  
   var socket = game.getSocket();
 
   socket.emit('join', function(data) {
@@ -35,7 +36,7 @@ function Game() {
   var cursors;
   var jumpButton;
   var bg;
-  var currentPlayer = game.rnd.integerInRange(100, 250);
+  var currentPlayer = 0;//game.rnd.integerInRange(100, 250);
   var clientPlayers = {}
   var master = false;
   var moveFactor = 3;
@@ -59,6 +60,7 @@ function Game() {
       game.load.image('tiles-1', 'assets/games/starstruck/tiles-1.png');
       game.load.spritesheet('dude', 'assets/games/starstruck/dude.png', 32, 48);
       game.load.spritesheet('droid', 'assets/games/starstruck/droid.png', 32, 32);
+      game.load.spritesheet('mario', 'assets/games/starstruck/mario.png', 16, 21)
       game.load.image('starSmall', 'assets/games/starstruck/star.png');
       game.load.image('starBig', 'assets/games/starstruck/star2.png');
       game.load.image('background', 'assets/games/starstruck/background2.png');
@@ -73,7 +75,6 @@ function Game() {
       bg.fixedToCamera = true;
 
       map = game.add.tilemap('level1');
-
       map.addTilesetImage('tiles-1');
 
       game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
@@ -89,16 +90,22 @@ function Game() {
 
       game.physics.arcade.gravity.y = 1000;
 
-      var guy = game.add.sprite(60, 60, 'dude');
+      var guy = game.add.sprite(60, 60, 'mario');
 
       game.physics.enable(guy, Phaser.Physics.ARCADE);
-      // guy.body.bounce.y = 0.01;
+      
+      guy.body.bounce.y = 0.01;
+      guy.body.bounce.x = 0.01;
+      
       guy.body.collideWorldBounds = true;
-      guy.body.setSize(20, 32, 5, 16);
+      guy.body.setSize(16, 21, 0, 0);
 
-      guy.animations.add('left', [0, 1, 2, 3], 10, true);
-      guy.animations.add('turn', [4], 20, true);
-      guy.animations.add('right', [5, 6, 7, 8], 10, true);
+      guy.animations.add('right', [0, 1, 2, 3], 30, true);
+      guy.animations.add('turn', [7], 30, true);
+      guy.animations.add('left', [7, 6, 4, 5], 30, true);
+
+      guy.body.checkCollision.left = true;
+      guy.body.checkCollision.right = true;
 
       game.camera.follow(guy);
 
@@ -125,22 +132,35 @@ function Game() {
 
       for (var player in clientPlayers) {
         if (player != socket.id && !guys.hasOwnProperty(player)) {
-          var guy = game.add.sprite(60 + 30, 60 + 30, 'dude');
+          var guy = game.add.sprite(60 + 30, 60 + 30, 'mario');
 
           game.physics.enable(guy, Phaser.Physics.ARCADE);
 
-          // guy.body.bounce.y = 0.01;
-          // guy.body.collideWorldBounds = false;
-          guy.body.setSize(20, 32, 5, 16);
+          guy.body.bounce.y = 0.01;
+          guy.body.bounce.x = 0.01;
 
-          guy.animations.add('left', [0, 1, 2, 3], 10, true);
-          guy.animations.add('turn', [4], 20, true);
-          guy.animations.add('right', [5, 6, 7, 8], 10, true);
+          // guy.body.collideWorldBounds = false;
+          guy.body.setSize(16, 21, 0, 0);
+
+          guy.body.checkCollision.left = true;
+          guy.body.checkCollision.right = true;
+
+          guy.animations.add('right', [0, 1, 2, 3], 30, true);
+          guy.animations.add('turn', [7], 30, true);
+          guy.animations.add('left', [7, 6, 4, 5], 30, true);
 
           guys[player] = guy;
 
         }
       };
+
+      for (var guy in guys) {
+        for (var collideGuy in guys) {
+          game.physics.arcade.collide(guys[guy], guys[collideGuy]);
+        }
+        game.physics.arcade.collide(guys[guy], layer);
+
+      }
 
       socket.on('disconnect', function(socketId) {
         delete guys[socketId];
@@ -153,8 +173,8 @@ function Game() {
           guys[data.socketId].animations.play(data.animation);
 
           if (game.time.now > syncTimer) {
-            guys[data.socketId].x = data.posx - 5;
-            guys[data.socketId].y = data.posy - 16;
+            guys[data.socketId].x = data.posx;
+            guys[data.socketId].y = data.posy;
             syncTimer = game.time.now + 1000;
           }    
 
@@ -164,9 +184,6 @@ function Game() {
         } 
       });
 
-      for (var guy in guys) {
-        game.physics.arcade.collide(guys[guy], layer);
-      }
 
       if (cursors.left.isUp) {
         guys[socket.id].body.velocity.x = -0;
@@ -203,8 +220,8 @@ function Game() {
       }
 
       if (jumpButton.isDown && game.time.now > jumpTimer) {
-        guys[socket.id].body.velocity.y = -150;
-        jumpTimer = game.time.now + 10;
+        guys[socket.id].body.velocity.y = -300;
+        jumpTimer = game.time.now + 600;
       }
 
       this.updateServer();
